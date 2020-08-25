@@ -18,6 +18,8 @@
 import subprocess
 import sys
 
+from typing import List
+
 from autohooks.api import ok, error, out
 from autohooks.api.path import match
 from autohooks.api.git import get_staged_status, stash_unstaged_changes
@@ -71,6 +73,21 @@ def get_pylint_arguments(config):
     return arguments
 
 
+def lint(file: str, arguments: List) -> int:
+    cmd = ['pylint']
+    cmd.extend(arguments)
+    cmd.append(str(file))
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out_, _ = proc.communicate()
+    if out_:
+        out_ = out_.decode(
+            encoding=sys.getdefaultencoding(), errors='replace'
+        ).split('\n')
+        for line in out_:
+            out(line)
+    return proc.returncode
+
+
 def precommit(config=None, **kwargs):  # pylint: disable=unused-argument
     check_pylint_installed()
 
@@ -85,22 +102,11 @@ def precommit(config=None, **kwargs):  # pylint: disable=unused-argument
 
     with stash_unstaged_changes(files):
         for f in files:
-            cmd = ['pylint']
-            cmd.extend(arguments)
-            cmd.append(str(f.absolute_path()))
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
-            out_, _ = proc.communicate()
-            if out_:
-                out_ = out_.decode(
-                    encoding=sys.getdefaultencoding(), errors='replace'
-                ).split('\n')
-                for line in out_:
-                    out(line)
-            if proc.returncode:
+            status = lint(file=f.absolute_path(), arguments=arguments)
+
+            if status:
                 error('Linting error(s) found in {}.'.format(str(f.path)))
             else:
                 ok('Linting {} was successful.'.format(str(f.path)))
 
-        return proc.returncode
+        return status
