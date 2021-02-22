@@ -45,7 +45,7 @@ keywords = [
 
 [tool.poetry.dependencies]
 python = "^3.5"
-pylint = "^2.5.3"
+pylint = "^2.6.2"
 black = {version = "20.8b1", python = "^3.6"}
 autohooks = ">=2.2.0"
 
